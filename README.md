@@ -13,8 +13,9 @@ Table of Contents
         * [example for curl](#example-for-curl)
       * [configuration example for CONNECT request in https](#configuration-example-for-connect-request-in-https)
         * [example for curl (CONNECT request in https)](#example-for-curl-connect-request-in-https)
-      * [example for browser](#example-for-browser)
+        * [example for browser](#example-for-browser)
       * [example for basic authentication](#example-for-basic-authentication)
+      * [example for proxying WebSocket](#example-for-proxying-websocket)
    * [Install](#install)
       * [select patch](#select-patch)
       * [build nginx](#build-nginx)
@@ -61,25 +62,35 @@ Configuration Example
 ---------------------
 
 ```nginx
- server {
-     listen                         3128;
+server {
+    listen                         3128;
 
-     # dns resolver used by forward proxying
-     resolver                       8.8.8.8;
+    # dns resolver used by forward proxying
+    resolver                       8.8.8.8;
 
-     # forward proxy for CONNECT request
-     proxy_connect;
-     proxy_connect_allow            443 563;
-     proxy_connect_connect_timeout  10s;
-     proxy_connect_data_timeout     10s;
+    # forward proxy for CONNECT requests
+    proxy_connect;
+    proxy_connect_allow            443 563;
+    proxy_connect_connect_timeout  10s;
+    proxy_connect_data_timeout     10s;
 
-     # forward proxy for non-CONNECT request
-     location / {
-         proxy_pass http://$host;
-         proxy_set_header Host $host;
-     }
- }
+    # defined by yourself for non-CONNECT requests
+    # Example: reverse proxy for non-CONNECT requests
+    location / {
+        proxy_pass http://$host;
+        proxy_set_header Host $host;
+    }
+}
 ```
+
+* The `resolver` directive MUST be configured globally in `server {}` block (or `http {}` block).
+* Any `location {}` block, `upstream {}` block and any other standard backend/upstream directives, such as `proxy_pass`, do not impact the functionality of this module. (The proxy_connect module only executes the logic for requests that use the CONNECT method and that have a data flow under this tunnel.)
+  * If you dont want to handle non-CONNECT requests, you can modify `location {}` block as following:
+    ```
+    location / {
+        return 403 "Non-CONNECT requests are forbidden";
+    }
+    ```
 
 Example for curl
 ----------------
@@ -160,29 +171,30 @@ configuration example for CONNECT request in HTTPS
 --------------------------------------------------
 
 ```nginx
- server {
-     listen                         3128 ssl;
+server {
+    listen                         3128 ssl;
 
-     # self signed certificate generated via openssl command
-     ssl_certificate_key            /path/to/server.key;
-     ssl_certificate                /path/to/server.crt;
-     ssl_session_cache              shared:SSL:1m;
+    # self signed certificate generated via openssl command
+    ssl_certificate_key            /path/to/server.key;
+    ssl_certificate                /path/to/server.crt;
+    ssl_session_cache              shared:SSL:1m;
 
-     # dns resolver used by forward proxying
-     resolver                       8.8.8.8;
+    # dns resolver used by forward proxying
+    resolver                       8.8.8.8;
 
-     # forward proxy for CONNECT request
-     proxy_connect;
-     proxy_connect_allow            443 563;
-     proxy_connect_connect_timeout  10s;
-     proxy_connect_data_timeout     10s;
+    # forward proxy for CONNECT request
+    proxy_connect;
+    proxy_connect_allow            443 563;
+    proxy_connect_connect_timeout  10s;
+    proxy_connect_data_timeout     10s;
 
-     # forward proxy for non-CONNECT request
-     location / {
-         proxy_pass http://$host;
-         proxy_set_header Host $host;
-     }
- }
+    # defined by yourself for non-CONNECT request
+    # Example: reverse proxy for non-CONNECT requests
+    location / {
+        proxy_pass http://$host;
+        proxy_set_header Host $host;
+    }
+}
 ```
 
 example for curl (CONNECT request in https)
@@ -327,6 +339,13 @@ We can do access control on CONNECT request using nginx auth basic module.
 See [this guide](https://github.com/chobits/ngx_http_proxy_connect_module/issues/42#issuecomment-502985437) for more details.
 
 
+Example for proxying WebSocket
+------------------------------
+
+* Note that nginx has its own WebSocket reverse proxy module, which is is not limited to the CONNECT tunnel, see [nginx.org doc: Nginx WebSocket proxying](https://nginx.org/en/docs/http/websocket.html) and [nginx.com blog: NGINX as a WebSocket Proxy](https://www.nginx.com/blog/websocket-nginx/).
+* This module enables the WebSocket protocol to work over the CONNECT tunnel, see https://github.com/chobits/ngx_http_proxy_connect_module/issues/267#issuecomment-1575449174
+
+
 Install
 =======
 
@@ -344,10 +363,11 @@ Select patch
 | 1.13.x ~ 1.14.x  | YES | [proxy_connect_rewrite_1014.patch](patch/proxy_connect_rewrite_1014.patch) |
 | 1.15.2           | YES | [proxy_connect_rewrite_1015.patch](patch/proxy_connect_rewrite_1015.patch) |
 | 1.15.4 ~ 1.16.x  | YES | [proxy_connect_rewrite_101504.patch](patch/proxy_connect_rewrite_101504.patch) |
-| 1.17.x ~ 1.18.0  | YES | [proxy_connect_rewrite_1018.patch](patch/proxy_connect_rewrite_1018.patch) |
+| 1.17.x ~ 1.18.x  | YES | [proxy_connect_rewrite_1018.patch](patch/proxy_connect_rewrite_1018.patch) |
 | 1.19.x ~ 1.21.0  | YES | [proxy_connect_rewrite_1018.patch](patch/proxy_connect_rewrite_1018.patch) |
-| 1.21.1 ~ 1.22.1  | YES | [proxy_connect_rewrite_102101.patch](patch/proxy_connect_rewrite_102101.patch) |
-| 1.23.x           | YES | [proxy_connect_rewrite_102101.patch](patch/proxy_connect_rewrite_102101.patch) |
+| 1.21.1 ~ 1.22.x  | YES | [proxy_connect_rewrite_102101.patch](patch/proxy_connect_rewrite_102101.patch) |
+| 1.23.x ~ 1.24.0  | YES | [proxy_connect_rewrite_102101.patch](patch/proxy_connect_rewrite_102101.patch) |
+| 1.25.0 ~ 1.25.x  | YES | [proxy_connect_rewrite_102101.patch](patch/proxy_connect_rewrite_102101.patch) |
 
 | OpenResty version | enable REWRITE phase | patch |
 | --: | --: | --: |
@@ -714,7 +734,8 @@ Nginx Compatibility
 
 The latest module is compatible with the following versions of nginx:
 
-* 1.23.2  (version of 1.23.x)
+* 1.25.0  (mainline version of 1.25.x)
+* 1.24.0  (version of 1.24.x)
 * 1.22.1  (version of 1.22.x)
 * 1.20.2  (version of 1.20.x)
 * 1.18.0  (version of 1.18.x)
@@ -731,11 +752,11 @@ OpenResty Compatibility
 
 The latest module is compatible with the following versions of OpenResty:
 
-* 1.13.6 (version: 1.13.6.2)
-* 1.15.8 (version: 1.15.8.1)
-* 1.17.8 (version: 1.17.8.2)
+* 1.21.4 (version: 1.21.4.2 RC1)
 * 1.19.3 (version: 1.19.3.1)
-* 1.21.4 (version: 1.21.4.1)
+* 1.17.8 (version: 1.17.8.2)
+* 1.15.8 (version: 1.15.8.1)
+* 1.13.6 (version: 1.13.6.2)
 
 Tengine Compatibility
 ---------------------
