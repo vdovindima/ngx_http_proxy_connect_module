@@ -23,14 +23,14 @@ RUN set -eux \
         alpine-sdk \
         findutils \
         unzip \
-    && wget https://nginx.org/download/nginx-1.23.3.tar.gz \
-    && tar -zxvf nginx-1.23.3.tar.gz \
-    && rm -f nginx-1.23.3.tar.gz \
-    && wget https://github.com/chobits/ngx_http_proxy_connect_module/archive/refs/tags/v0.0.4.tar.gz \
-    && tar -zxvf v0.0.4.tar.gz \
-    && rm -f v0.0.4.tar.gz \
-    && cd nginx-1.23.3 \
-    && patch -p1 < ../ngx_http_proxy_connect_module-0.0.4/patch/proxy_connect_rewrite_102101.patch \
+    && wget https://nginx.org/download/nginx-1.25.1.tar.gz \
+    && tar -zxvf nginx-1.25.1.tar.gz \
+    && rm -f nginx-1.25.1.tar.gz \
+    && wget https://github.com/chobits/ngx_http_proxy_connect_module/archive/refs/tags/v0.0.5.tar.gz \
+    && tar -zxvf v0.0.5.tar.gz \
+    && rm -f v0.0.5.tar.gz \
+    && cd nginx-1.25.1 \
+    && patch -p1 < ../ngx_http_proxy_connect_module-0.0.5/patch/proxy_connect_rewrite_102101.patch \
     && ./configure \
         --user=nginx \
         --group=nginx \
@@ -56,13 +56,15 @@ RUN set -eux \
         --with-http_gzip_static_module \
         --with-http_secure_link_module \
         --with-http_slice_module \
+	--with-http_v3_module \
+	--with-mail \
         --with-stream \
         --with-debug \
         --with-cc-opt='-O0 -g' \
         --with-threads \
         --with-file-aio \
         --modules-path=/etc/nginx/modules \
-        --add-module=../ngx_http_proxy_connect_module-0.0.4 \
+        --add-module=../ngx_http_proxy_connect_module-0.0.5 \
     && make \
     && make install \
     && ln -sf /dev/stdout /var/log/nginx/access.log \
