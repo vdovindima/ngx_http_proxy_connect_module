@@ -56,11 +56,11 @@ RUN set -eux \
         --with-http_gzip_static_module \
         --with-http_secure_link_module \
         --with-http_slice_module \
-	--with-http_v3_module \
-	--with-mail \
+        --with-http_v3_module \
+        --with-mail \
         --with-stream \
         --with-debug \
-        --with-cc-opt='-O0 -g' \
+        --with-cc-opt='-O0 -g -Wno-error' \
         --with-threads \
         --with-file-aio \
         --modules-path=/etc/nginx/modules \
@@ -77,7 +77,9 @@ RUN set -eux \
         curl \
         ca-certificates \
         tzdata \
-        pcre
+        pcre \
+        libgd \
+        geoip
 
 
 WORKDIR /var/www
